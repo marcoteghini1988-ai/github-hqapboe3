@@ -7,10 +7,12 @@ import { playSound } from './audio';
 import { TacticalVisual, ModuleIcon, TerrainVisual } from './visualAssets';
 import { PilotPortraitVisual, checkPilotSetResonance } from './pilotsSystem';
 import { WEAPONS_DATABASE } from './weaponsSystem';
+import { fireWeaponCombatVFX } from './weaponEffects';
 
 // ============================================================================
 // FUNZIONI DI SUPPORTO SIMBOLI & VALORI
 // ============================================================================
+
 
 export const getCardSuit = (card) => {
   if (!card) return null;
@@ -375,7 +377,7 @@ export const calculateAiTurnClassic = (aiHand, objectives, activeAnomaly = null)
   const styleEl = document.createElement('style');
   styleEl.id = styleId;
   styleEl.textContent = `
-    .classic-screen-wrapper {
+        .classic-screen-wrapper {
       position: absolute;
       inset: 0;
       width: 100%;
@@ -387,7 +389,46 @@ export const calculateAiTurnClassic = (aiHand, objectives, activeAnomaly = null)
       z-index: 2;
     }
 
+            #classic-projectiles-layer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100dvh;
+      pointer-events: none;
+      z-index: 999999;
+      overflow: hidden;
+    }
+
+    #classic-projectiles-layer > div {
+      top: 0;
+      left: 0;
+      margin: 0;
+    }
+
+
+
+    @keyframes cardDealFlyIn {
+      0% {
+        opacity: 0;
+        transform: translateY(-90px) translateZ(80px) rotate(-10deg) scale(0.5);
+      }
+      70% {
+        opacity: 1;
+        transform: translateY(4px) translateZ(10px) rotate(2deg) scale(1.04);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) translateZ(0) rotate(0deg) scale(1);
+      }
+    }
+
+    .card-deal-anim {
+      animation: cardDealFlyIn 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28) backwards;
+    }
+
     .guided-hud-floating-strip {
+
       position: absolute;
       top: 12px;
       left: 50%;
@@ -1625,13 +1666,139 @@ export const calculateAiTurnClassic = (aiHand, objectives, activeAnomaly = null)
       animation: guidedTargetPulseClassic 0.9s infinite alternate ease-in-out !important;
     }
 
-    @keyframes guidedTargetPulseClassic {
+        @keyframes guidedTargetPulseClassic {
       0% { outline-color: #00f2fe; box-shadow: 0 0 8px #00f2fe; }
       100% { outline-color: #facc15; box-shadow: 0 0 20px #facc15; }
     }
+
+            .kinetic-flying-particle {
+      position: fixed;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+      z-index: 999999;
+      font-weight: 900;
+      line-height: 1;
+      user-select: none;
+      opacity: 0;
+      will-change: transform, opacity;
+      animation: particleFloatCurve var(--fly-duration, 0.5s) cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
+      animation-fill-mode: both;
+    }
+
+    .flight-arrow-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 6px;
+      height: 32px;
+      background: linear-gradient(180deg, #ffffff 0%, #f43f5e 60%, #fda4af 100%);
+      box-shadow: 0 0 16px #f43f5e, 0 0 6px #ffffff;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 999999;
+    }
+
+    .bar-hit-flash {
+      animation: barFlashImpact 0.25s ease-out !important;
+    }
+
+    .bar-shiver {
+      animation: barShiverImpact 0.25s ease-in-out !important;
+    }
+
+    @keyframes barFlashImpact {
+      0% { filter: brightness(4); }
+      100% { filter: brightness(1); }
+    }
+
+    @keyframes barShiverImpact {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-6px, 2px); }
+      40% { transform: translate(6px, -2px); }
+      60% { transform: translate(-3px, 1px); }
+      80% { transform: translate(3px, -1px); }
+    }
+
+    @keyframes particleFloatCurve {
+      0% {
+        opacity: 0;
+        transform: translate3d(var(--sx), var(--sy), 0) scale(0.4) rotate(0deg);
+      }
+      20% {
+        opacity: 1;
+        transform: translate3d(var(--mid-x), var(--mid-y), 0) scale(1.4) rotate(15deg);
+      }
+      80% {
+        opacity: 1;
+      }
+      100% {
+        opacity: 0;
+        transform: translate3d(var(--tx), var(--ty), 0) scale(0.6) rotate(var(--rot, 0deg));
+      }
+    }
+
+    .hud-target-punch {
+      animation: elementPunchBounce 0.25s cubic-bezier(0.18, 0.89, 0.32, 1.28) !important;
+    }
+
+    @keyframes elementPunchBounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); filter: brightness(1.7); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+
+    @keyframes cardMagneticFusion {
+      0% {
+        transform: translateY(0) scale(1);
+        filter: brightness(1);
+      }
+      30% {
+        transform: translateY(-24px) scale(1.15);
+        filter: brightness(2) drop-shadow(0 0 20px #00f2fe);
+      }
+      75% {
+        transform: translate3d(var(--fuse-x, 0px), var(--fuse-y, 0px), 0) scale(0.35);
+        filter: brightness(4) drop-shadow(0 0 35px #ffffff);
+        opacity: 1;
+      }
+      100% {
+        transform: translate3d(var(--fuse-x, 0px), var(--fuse-y, 0px), 0) scale(0);
+        filter: brightness(6);
+        opacity: 0;
+      }
+    }
+
+    .card-fusing-active {
+      animation: cardMagneticFusion 0.42s cubic-bezier(0.2, 0.8, 0.3, 1) forwards !important;
+      pointer-events: none !important;
+      z-index: 250 !important;
+    }
+
+    .fusion-shockwave-burst {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 120px;
+      height: 120px;
+      margin-left: -60px;
+      margin-top: -60px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 999999;
+      background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(0,242,254,0.9) 40%, transparent 70%);
+      animation: shockwaveExpand 0.45s ease-out forwards;
+    }
+
+    @keyframes shockwaveExpand {
+      0% { transform: scale(0.1); opacity: 1; filter: blur(0px); }
+      100% { transform: scale(3); opacity: 0; filter: blur(8px); }
+    }
+
   `;
   document.head.appendChild(styleEl);
 })();
+
 
 const EPIC_META = {
   epic_item_1: { name: 'MÖBIUS', color: '#00f2fe' },
@@ -1646,7 +1813,77 @@ const EPIC_META = {
   epic_item_10: { name: 'SINGOLARITÀ', color: '#facc15' }
 };
 
+export const emitKineticParticles = ({
+  fromEl,
+  toEl,
+  symbol = '♥',
+  color = '#f43f5e',
+  count = 6,
+  soundKey = null,
+  onImpact = null
+}) => {
+  if (typeof document === 'undefined' || !fromEl || !toEl) {
+    if (onImpact) onImpact();
+    return;
+  }
+
+  const fromRect = fromEl.getBoundingClientRect();
+  const toRect = toEl.getBoundingClientRect();
+
+  const startX = fromRect.left + fromRect.width / 2;
+  const startY = fromRect.top + fromRect.height / 2;
+  const targetX = toRect.left + toRect.width / 2;
+  const targetY = toRect.top + toRect.height / 2;
+
+  const container = document.body;
+  let remaining = count;
+
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'kinetic-flying-particle';
+    p.innerText = symbol;
+    p.style.color = color;
+    p.style.fontSize = `${16 + Math.random() * 8}px`;
+    p.style.textShadow = `0 0 14px ${color}, 0 0 4px #ffffff`;
+
+    const arcOffset = (Math.random() - 0.5) * 80;
+    const midX = startX + arcOffset;
+    const midY = startY - 35 - Math.random() * 20;
+    const rot = `${(Math.random() - 0.5) * 60}deg`;
+    const flyDuration = 0.48 + Math.random() * 0.12;
+    const staggerDelay = i * 0.045;
+
+    p.style.setProperty('--sx', `${startX}px`);
+    p.style.setProperty('--sy', `${startY}px`);
+    p.style.setProperty('--mid-x', `${midX}px`);
+    p.style.setProperty('--mid-y', `${midY}px`);
+    p.style.setProperty('--tx', `${targetX}px`);
+    p.style.setProperty('--ty', `${targetY}px`);
+    p.style.setProperty('--rot', rot);
+    p.style.setProperty('--fly-duration', `${flyDuration}s`);
+    p.style.animationDelay = `${staggerDelay}s`;
+
+    container.appendChild(p);
+
+    setTimeout(() => {
+      toEl.classList.remove('hud-target-punch');
+      void toEl.offsetWidth;
+      toEl.classList.add('hud-target-punch');
+
+      p.remove();
+      remaining--;
+      if (remaining === 0 && onImpact) onImpact();
+    }, (flyDuration + staggerDelay) * 1000);
+  }
+
+  if (soundKey) {
+    try { playSound(soundKey); } catch (_) {}
+  }
+};
+
+
 export default function ClassicBattleView({
+
   tableSlots = [null, null, null, null, null],
   setTableSlots,
   setPlayerHand,
@@ -1747,8 +1984,19 @@ export default function ClassicBattleView({
   isBombAllowed = false,
   t
 }) {
-  const [scale, setScale] = useState(1);
+    const [scale, setScale] = useState(1);
   const [selectedIndices, setSelectedIndices] = useState([]);
+  const [dealKey, setDealKey] = useState(0);
+
+  useEffect(() => {
+    // Lancia la smazzata visibile appena finisce la schermata di presentazione iniziale
+    const dealTimer = setTimeout(() => {
+      setDealKey(k => k + 1);
+      try { playSound('card_slide'); } catch (_) {}
+    }, 2400);
+    return () => clearTimeout(dealTimer);
+  }, []);
+
   const [selectedHardpointIndex, setSelectedHardpointIndex] = useState(0);
   const [cardsPlayedThisTurn, setCardsPlayedThisTurn] = useState(0);
   const cardsPlayedThisTurnRef = useRef(0);
@@ -1826,7 +2074,7 @@ export default function ClassicBattleView({
     return bestSlot;
   };
 
-  const executePlaceCardOnSlot = (cardToPlace, targetSlotIdx) => {
+    const executePlaceCardOnSlot = (cardToPlace, targetSlotIdx) => {
     if (!cardToPlace || targetSlotIdx === null || targetSlotIdx < 0 || targetSlotIdx > 4) return;
     if (cardsPlayedThisTurnRef.current >= 3) return;
 
@@ -1839,30 +2087,52 @@ export default function ClassicBattleView({
         if (firstEmpty !== -1) finalSlot = firstEmpty;
       }
 
-      const oldCard = prevTable[finalSlot];
+                  const oldCard = prevTable[finalSlot];
 
       if (oldCard !== null && oldCard !== undefined) {
         if (typeof setPlayerDiscard === 'function') {
           setPlayerDiscard(prevDisc => [...prevDisc, oldCard]);
         }
-        const oldSuit = getCardSuit(oldCard);
-        const oldVal = Number(oldCard.value) || 0;
-        if (oldSuit && typeof setWeaponTanks === 'function') {
-          setWeaponTanks(prevTanks => {
-            const wpForSuit = resolvedWeapons.find(w => w.suit === oldSuit);
-            const cap = wpForSuit ? (wpForSuit.maxCapacity || wpForSuit.maxSalvo || 10) : 10;
-            const curVal = prevTanks[oldSuit] || 0;
+      }
+
+      // Volo dei semi e ricarica munizioni verso il serbatoio dell'arma
+      const placedSuit = getCardSuit(cardToPlace);
+      const placedVal = Number(cardToPlace?.value) || 1;
+      const wpForSuit = resolvedWeapons.find(w => w.suit === placedSuit);
+
+      if (placedSuit && wpForSuit) {
+        if (typeof setWeaponTanks === 'function') {
+          setWeaponTanks(prev => {
+            const cap = wpForSuit.maxCapacity || wpForSuit.maxSalvo || 10;
+            const cur = prev[placedSuit] || 0;
             return {
-              ...prevTanks,
-              [oldSuit]: Math.min(cap, curVal + oldVal)
+              ...prev,
+              [placedSuit]: Math.min(cap, cur + placedVal)
             };
           });
         }
+
+        setTimeout(() => {
+          const slotElement = document.querySelector(`[data-table-slot="${finalSlot}"]`);
+          const targetWeaponBox = document.getElementById(`weapon_box_${placedSuit}`);
+          if (slotElement && targetWeaponBox) {
+            emitKineticParticles({
+              fromEl: slotElement,
+              toEl: targetWeaponBox,
+              symbol: formatCardSymbol({ suit: placedSuit }),
+              color: wpForSuit.themeColor || '#00f2fe',
+              count: Math.min(6, Math.max(3, placedVal)),
+              soundKey: 'card_slide'
+            });
+          }
+        }, 50);
       }
 
       const nextTable = [...prevTable];
       nextTable[finalSlot] = cardToPlace;
       return nextTable;
+
+
     });
 
     setCardsPlayedThisTurn(prev => {
@@ -1883,6 +2153,8 @@ export default function ClassicBattleView({
 
     try { playSound('card_slide'); } catch (_) {}
   };
+
+
 
   const handleCardPointerDown = (e, handIdx) => {
     if (turn !== 'player1' || isSelectingDiscard || isExchangeMode) return;
@@ -2068,8 +2340,57 @@ export default function ClassicBattleView({
     prevTurnRef.current = turn;
   }, [turn]);
 
-  const handleCardClick = (idx) => {
-    if (isExchangeMode || isSelectingDiscard) {
+    const handleCardClick = (idx) => {
+    if (isExchangeMode) {
+      if (typeof onCardClick === 'function') onCardClick(idx);
+      return;
+    }
+
+    // Effetti grafici per lo scarto (Cuori verso la propria barra vita, Picche verso quella nemica)
+    if (isSelectingDiscard) {
+      const cardToDiscard = playerHand?.[idx];
+      const cardElement = document.querySelectorAll('.card-unit-station')[idx];
+      const suit = getCardSuit(cardToDiscard);
+
+            if (cardElement && suit === 'hearts') {
+        const playerHpDock = document.getElementById('classicPlayerHpDock');
+        if (playerHpDock) {
+          emitKineticParticles({
+            fromEl: cardElement,
+            toEl: playerHpDock,
+            symbol: '♥',
+            color: '#10b981',
+            count: 7,
+            soundKey: 'heal'
+          });
+        }
+      } else if (cardElement && suit === 'spades') {
+        const enemyHpDock = document.getElementById('classicEnemyHpDock');
+        if (enemyHpDock) {
+          emitKineticParticles({
+            fromEl: cardElement,
+            toEl: enemyHpDock,
+            symbol: '♠',
+            color: '#c084fc',
+            count: 7,
+            soundKey: 'damage'
+          });
+        }
+      } else if (cardElement && (suit === 'diamonds' || suit === 'clubs')) {
+        const targetWeaponBox = document.getElementById(`weapon_box_${suit}`);
+        if (targetWeaponBox) {
+          emitKineticParticles({
+            fromEl: cardElement,
+            toEl: targetWeaponBox,
+            symbol: formatCardSymbol({ suit }),
+            color: suit === 'diamonds' ? '#00f2fe' : '#10b981',
+            count: 6,
+            soundKey: 'card_slide'
+          });
+        }
+      }
+
+
       if (typeof onCardClick === 'function') {
         onCardClick(idx);
       }
@@ -2091,6 +2412,7 @@ export default function ClassicBattleView({
   };
 
   const scannerOn = Boolean(isScannerActive || scannerMode === 'FREE_FULL');
+
 
   const computedScannerHints = useMemo(() => {
     if (!scannerOn || !playerHand || playerHand.length < 2) return { cardIndices: [], targetIndex: null };
@@ -2313,7 +2635,7 @@ export default function ClassicBattleView({
   const isPilotResonant = checkPilotSetResonance(selectedPilot, selectedDeck, selectedAbility);
   const currentPilotLvl = pilotInventory?.[selectedPilot]?.level || 1;
 
-  const handleAttackExecute = (e) => {
+        const handleAttackExecute = (e) => {
     if (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -2326,96 +2648,149 @@ export default function ClassicBattleView({
 
     const firingWeapons = bestTrigger.weapons || [bestTrigger.weapon];
     const { participatingCards, damage } = bestTrigger;
+    const primaryWeapon = firingWeapons[0];
+    const attackDamage = pistonOverrideActive ? pistonOverrideDamage : damage;
 
-    if (typeof setWeaponTanks === 'function') {
-      setWeaponTanks(prev => {
-        const next = { ...prev };
+    // 1. FUSIONE MAGNETICA: calcolo traiettoria verso il centro del banco comune
+    const tableEl = document.getElementById('classicBancoComuneBox');
+    let centerX = window.innerWidth / 2;
+    let centerY = window.innerHeight / 2;
 
-        participatingCards.forEach(c => {
-          const s = getCardSuit(c);
-          const val = Number(c?.value) || 0;
-          if (s && next[s] !== undefined) {
-            const wpForSuit = resolvedWeapons.find(w => w.suit === s);
-            const cap = wpForSuit ? (wpForSuit.maxCapacity || wpForSuit.maxSalvo || 10) : 10;
-            next[s] = Math.min(cap, next[s] + val);
-          }
-        });
+    if (tableEl) {
+      const rect = tableEl.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
 
-        firingWeapons.forEach(wp => {
-          const available = next[wp.suit] || 0;
-          const maxCap = wp.maxCapacity || wp.maxSalvo || 10;
-          const salvo = Math.min(available, wp.maxSalvo || maxCap);
-          next[wp.suit] = Math.max(0, available - salvo);
-        });
-
-        return next;
-      });
+      const burst = document.createElement('div');
+      burst.className = 'fusion-shockwave-burst';
+      burst.style.left = `${centerX}px`;
+      burst.style.top = `${centerY}px`;
+      document.body.appendChild(burst);
+      setTimeout(() => burst.remove(), 450);
     }
 
-    setWeaponHeatState(prevHeat => {
-      const next = { ...prevHeat };
-      firingWeapons.forEach(wp => {
-        const cur = next[wp.id] || { shotsFired: 0, cooldownTurns: 0 };
-        const nextShots = cur.shotsFired + 1;
-        const limit = wp.maxShots || 1;
-
-        if (nextShots >= limit) {
-          next[wp.id] = {
-            shotsFired: 0,
-            cooldownTurns: wp.cooldownDuration || 1
-          };
-          try { playSound('terrain_flip'); } catch (_) {}
-        } else {
-          next[wp.id] = {
-            ...cur,
-            shotsFired: nextShots
-          };
-        }
-      });
-      return next;
+    participatingCards.forEach(c => {
+      const cardEl = document.getElementById(`table_card_${c.id}`);
+      if (cardEl) {
+        const cardRect = cardEl.getBoundingClientRect();
+        const deltaX = (centerX - (cardRect.left + cardRect.width / 2)) / (scale || 1);
+        const deltaY = (centerY - (cardRect.top + cardRect.height / 2)) / (scale || 1);
+        cardEl.style.setProperty('--fuse-x', `${deltaX}px`);
+        cardEl.style.setProperty('--fuse-y', `${deltaY}px`);
+        cardEl.classList.add('card-fusing-active');
+      }
     });
 
-    const partSet = new Set(participatingCards);
-    setTableSlots(prev => prev.map(c => (c && partSet.has(c) ? null : c)));
+    try { playSound('epic_item_trigger'); } catch (_) {}
 
-    const attackDamage = pistonOverrideActive ? pistonOverrideDamage : damage;
-    const primaryWeapon = firingWeapons[0];
+    // 2. Al culmine della fusione (420ms) parte la balistica delle armi verso la barra HP
+    setTimeout(() => {
+      if (typeof setWeaponTanks === 'function') {
+        setWeaponTanks(prev => {
+          const next = { ...prev };
 
-    const payload = {
-      targetIndex: primaryWeapon.slotIdx,
-      resolvedObj: {
-        type: firingWeapons.length > 1 ? 'dual_fire' : primaryWeapon.slotType,
-        name: firingWeapons.map(w => w.name).join(' + '),
-        op: primaryWeapon.mathOp || '+',
-        target: primaryWeapon.target || 14,
-        isBomb: false
-      },
-      damage: attackDamage,
-      usedCards: participatingCards
-    };
+          participatingCards.forEach(c => {
+            const s = getCardSuit(c);
+            const val = Number(c?.value) || 0;
+            if (s && next[s] !== undefined) {
+              const wpForSuit = resolvedWeapons.find(w => w.suit === s);
+              const cap = wpForSuit ? (wpForSuit.maxCapacity || wpForSuit.maxSalvo || 10) : 10;
+              next[s] = Math.min(cap, next[s] + val);
+            }
+          });
 
-    try { playSound('click'); } catch (_) {}
+          firingWeapons.forEach(wp => {
+            const available = next[wp.suit] || 0;
+            const maxCap = wp.maxCapacity || wp.maxSalvo || 10;
+            const salvo = Math.min(available, wp.maxSalvo || maxCap);
+            next[wp.suit] = Math.max(0, available - salvo);
+          });
 
-    setCardsPlayedThisTurn(0);
-    cardsPlayedThisTurnRef.current = 0;
-    setSelectedHandToReplaceIdx(null);
+          return next;
+        });
+      }
 
-    if (typeof onAttack === 'function') {
-      onAttack(payload);
-    }
+      setWeaponHeatState(prevHeat => {
+        const next = { ...prevHeat };
+        firingWeapons.forEach(wp => {
+          const cur = next[wp.id] || { shotsFired: 0, cooldownTurns: 0 };
+          const nextShots = cur.shotsFired + 1;
+          const limit = wp.maxShots || 1;
+
+          if (nextShots >= limit) {
+            next[wp.id] = {
+              shotsFired: 0,
+              cooldownTurns: wp.cooldownDuration || 1
+            };
+            try { playSound('terrain_flip'); } catch (_) {}
+          } else {
+            next[wp.id] = {
+              ...cur,
+              shotsFired: nextShots
+            };
+          }
+        });
+        return next;
+      });
+
+      const partSet = new Set(participatingCards);
+      setTableSlots(prev => prev.map(c => (c && partSet.has(c) ? null : c)));
+
+      setCardsPlayedThisTurn(0);
+      cardsPlayedThisTurnRef.current = 0;
+      setSelectedHandToReplaceIdx(null);
+
+      const payload = {
+        targetIndex: primaryWeapon.slotIdx,
+        resolvedObj: {
+          type: firingWeapons.length > 1 ? 'dual_fire' : primaryWeapon.slotType,
+          name: firingWeapons.map(w => w.name).join(' + '),
+          op: primaryWeapon.mathOp || '+',
+          target: primaryWeapon.target || 14,
+          isBomb: false
+        },
+        damage: attackDamage,
+        usedCards: participatingCards
+      };
+
+      const onAttackFinished = () => {
+        if (typeof onAttack === 'function') {
+          onAttack(payload);
+        }
+      };
+
+      if (typeof fireWeaponCombatVFX === 'function') {
+        fireWeaponCombatVFX(primaryWeapon, primaryWeapon.currentLevel || 1, {
+          currentHp: aiHp,
+          maxHp: maxAiHp || 1,
+          damage: attackDamage,
+          onComplete: onAttackFinished
+        });
+      } else {
+        try { playSound('click'); } catch (_) {}
+        onAttackFinished();
+      }
+    }, 420);
   };
+
+
+
 
   // --- FINE PARTE 1 / 2 ---
 // ============================================================================
 // PARTE 2 / 2: CLASSICBATTLEVIEW.JSX (RENDER JSX, DOM 3D & COMPONENT CLOSING)
 // ============================================================================
 
-  return (
+    return (
     <div className="classic-screen-wrapper">
+      {/* LAYER TRASPARENTE PER I PROIETTILI VERSO LA BARRA HP */}
+      <div id="classic-projectiles-layer" />
+
       {!showCinematicSplash && currentTut && turn === 'player1' && (
         <div className="guided-hud-floating-strip">
           <div className="guided-hud-badge">ISTRUZIONI MISSIONE</div>
           <div className="guided-hud-text">
+
             {currentTut === 'S1' && guidedStep === 1 && "1. Scegli il bersaglio numerico o figura Poker sulla rampa centrale."}
             {currentTut === 'S1' && guidedStep === 2 && "2. Tocca le carte dalla tua mano per caricarle nel banco (min. 2 carte)."}
             {currentTut === 'S1' && guidedStep === 3 && "3. Calcolo valido! Premi ATTACCA per sferrare il colpo!"}
@@ -2468,7 +2843,8 @@ export default function ClassicBattleView({
               </span>
             </div>
 
-            <div 
+                        <div 
+              id="classicEnemyHpDock"
               className="hp-prismatic-dock"
               style={riftState?.active ? {
                 borderColor: '#facc15',
@@ -2476,6 +2852,7 @@ export default function ClassicBattleView({
               } : {}}
             >
               <div className="hp-segmented-grid"></div>
+
               <div 
                 className="enemy-hp-fill-3d" 
                 style={{ 
@@ -2821,19 +3198,22 @@ export default function ClassicBattleView({
               </div>
             </div>
 
-            {/* FILA 2: CORNICE BANCO COMUNE 5 CARTE STILE FELTRO TAVOLO DA POKER */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              padding: '4px 6px 5px 6px',
-              borderRadius: '8px',
-              border: '1.5px solid rgba(255, 255, 255, 0.75)',
-              background: 'rgba(2, 6, 23, 0.75)',
-              boxShadow: '0 0 8px rgba(255, 255, 255, 0.25), inset 0 0 12px rgba(0, 0, 0, 0.85)',
-              boxSizing: 'border-box',
-              zIndex: 10
-            }}>
+                        {/* FILA 2: CORNICE BANCO COMUNE 5 CARTE STILE FELTRO TAVOLO DA POKER */}
+            <div 
+              id="classicBancoComuneBox"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: '4px 6px 5px 6px',
+                borderRadius: '8px',
+                border: '1.5px solid rgba(255, 255, 255, 0.75)',
+                background: 'rgba(2, 6, 23, 0.75)',
+                boxShadow: '0 0 8px rgba(255, 255, 255, 0.25), inset 0 0 12px rgba(0, 0, 0, 0.85)',
+                boxSizing: 'border-box',
+                zIndex: 10
+              }}
+            >
               <div style={{
                 fontSize: '0.44rem',
                 fontFamily: 'Orbitron, sans-serif',
@@ -2893,6 +3273,7 @@ export default function ClassicBattleView({
 
                   return (
                     <div
+                      id={`table_card_${card.id || slotIdx}`}
                       key={card.id || slotIdx}
                       data-table-slot={slotIdx}
                       style={{
@@ -2925,6 +3306,7 @@ export default function ClassicBattleView({
                 })}
               </div>
             </div>
+
 
             {/* FILA 3: ARMI GIOCATORE CON CORNICE STILE FELTRO TAVOLO DA POKER */}
             <div style={{
@@ -2968,7 +3350,7 @@ export default function ClassicBattleView({
                   <span>SLOT POKER</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '5px' }}>
+                                <div style={{ display: 'flex', gap: '5px' }}>
                   {resolvedWeapons.slice(0, 2).map((wp, wIdx) => {
                     const isArmed = bestTrigger?.weapons?.some(w => w.id === wp.id) || bestTrigger?.weaponIdx === wIdx;
                     const storedBullets = weaponTanks[wp.suit] || 0;
@@ -2979,8 +3361,10 @@ export default function ClassicBattleView({
 
                     return (
                       <div
+                        id={`weapon_box_${wp.suit}`}
                         key={`p_wp_${wp.id}`}
                         className={isFrozen ? 'weapon-frozen-card' : ''}
+
                         style={{
                           width: '44px',
                           height: '62px',
@@ -3100,7 +3484,7 @@ export default function ClassicBattleView({
                   <span>SLOT CALCOLO</span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '5px' }}>
+                                <div style={{ display: 'flex', gap: '5px' }}>
                   {resolvedWeapons.slice(2, 4).map((wp, subIdx) => {
                     const wIdx = subIdx + 2;
                     const isArmed = bestTrigger?.weapons?.some(w => w.id === wp.id) || bestTrigger?.weaponIdx === wIdx;
@@ -3112,8 +3496,10 @@ export default function ClassicBattleView({
 
                     return (
                       <div
+                        id={`weapon_box_${wp.suit}`}
                         key={`p_wp_${wp.id}`}
                         className={isFrozen ? 'weapon-frozen-card' : ''}
+
                         style={{
                           width: '44px',
                           height: '62px',
@@ -3187,13 +3573,15 @@ export default function ClassicBattleView({
             </div>
           )}
 
-          <div className="wall-hand-rack player-side">
+                    <div className="wall-hand-rack player-side">
             {(playerHand || []).map((card, idx) => {
               const isPlacedOnTable = tableSlots.some(s => s && s === card);
               const isExchangeSelected = isExchangeMode && selectedExchangeIndices?.includes(idx);
               const isSelected = isExchangeMode ? isExchangeSelected : isPlacedOnTable;
 
               const isGolden = Boolean(card?.isGolden || (playerGoldenCardId && card?.id === playerGoldenCardId));
+              const dealDelay = `${idx * 0.05}s`;
+
 
               const suitKey = card?.suit || 'hearts';
               const suitClass = suitKey === 'diamonds' ? 'card-diamonds' :
@@ -3254,10 +3642,16 @@ export default function ClassicBattleView({
                     </div>
                   )}
 
-                  <div className={`tactile-card-body ${isSuggested ? 'suggested' : ''} ${isSelectingDiscard ? 'discard-mode' : ''} ${isGolden ? 'golden-card' : ''} ${(isGuidedCardS1 || isGuidedHeartsS2 || isGuidedGoldenS6) ? 'guided-pulse-target' : ''}`}>
+                                                      <div 
+                    key={`deal_${card?.id || idx}_${dealKey}`}
+                    className={`tactile-card-body card-deal-anim ${isSuggested ? 'suggested' : ''} ${isSelectingDiscard ? 'discard-mode' : ''} ${isGolden ? 'golden-card' : ''} ${(isGuidedCardS1 || isGuidedHeartsS2 || isGuidedGoldenS6) ? 'guided-pulse-target' : ''}`}
+                    style={{ animationDelay: `${idx * 0.06}s` }}
+                  >
+
                     {isGolden && playerGoldenTurns > 0 && (
                       <div className="golden-turns-badge">{playerGoldenTurns}T</div>
                     )}
+
 
                     <span className="card-suit-label">{formatCardSymbol(card)}</span>
                     <span className="card-num-3d">{formatCardValue(card)}</span>
@@ -3683,13 +4077,14 @@ export default function ClassicBattleView({
               </button>
             </div>
 
-            <div className="hp-prismatic-dock">
+                        <div id="classicPlayerHpDock" className="hp-prismatic-dock">
               <div className="hp-segmented-grid"></div>
               <div 
                 className="player-hp-fill-3d"
                 style={{ width: `${Math.max(0, Math.min(100, (playerHp / (maxPlayerHp || 1)) * 100))}%` }}
               ></div>
             </div>
+
           </div>
         </div>
 
